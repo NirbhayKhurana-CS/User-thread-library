@@ -4,115 +4,133 @@
 #include <stdio.h>  // Remove when submit.
 #include "queue.h"
 
-struct queue {
-	int front, back, size;
-    void* array[];
-};
+typedef struct {
+	void * key;
+	struct Qnode *next;
+} Qnode;
 
-queue_t queue_create(void)
-{
-	queue_t queuePtr = malloc(sizeof(struct queue));
-    queuePtr->front = 0;
-    queuePtr->back = -1;
-    queuePtr->size = 0;
-    //queuePtr->array = malloc(0 * (sizeof(void*)));
-    return queuePtr;
+typedef struct {
+	int length;
+	struct Qnode *front;
+	struct Qnode *back;
+} Queue;
+
+queue_t queue_create(void) {
+	queue_t q = malloc(sizeof(Queue));
+	q->front = NULL;
+	q->back = NULL;
+	q->length = 0;
+	return q;
 }
 
-int queue_destroy(queue_t queue)
-{
-	if (queue == NULL || queue->size != 0) {
-        return -1;
-    }
-    else {
-        //printf("Goes into queue_destroy\n");
-        //free(queue->array);
-        //printf("freed array\n");
-        free(queue);
-        //printf("freed queue\n");
-        return 0;
-    }
-}
-
-int queue_enqueue(queue_t queue, void *data)
-{
-    if (queue == NULL || data == NULL) {
-        return -1;
-    }
-    else {
-        queue->array[queue->back+1] = data;
-        // TODO retirn -1 memory allocation error when enqueing
-        queue->back++;
-        queue->size++;
-
-        return 0;
-    }
+int queue_destroy(queue_t queue) {
 
 }
 
-int queue_dequeue(queue_t queue, void **data)
-{
-    if (queue == NULL || data == NULL) {
-        return -1;
-    }
-    else {
-        printf("before address of pointer %p \n", data);
-        // printf("before storing data is %d \n", *((int*)*data));
-        data = &queue->array[queue->front];
-        printf("dequeu value inside function is %d \n", *(int*)queue->array[queue->front]);
-        printf("after storing data is %d \n", *((int*)*data));
-        printf("after address of pointer %p \n", data);
-        queue->array[queue->front] = NULL;
-        queue->front++;
-        queue->size--;
-
-        return 0;
-    }
+int queue_enqueue(queue_t queue, void *data) {
+	if (data == NULL || queue == NULL) {
+		return -1;
+	}
+	Qnode *newNode = malloc(sizeof(Qnode));
+	if (newNode == NULL) {
+		printf("malloc node goes wrong\n");
+		return -1;
+	}
+	newNode->key = data;
+	newNode->next = NULL;
+	if (queue->length == 0) {
+		queue->front = newNode;
+		queue->back = newNode;
+	}
+	else {
+		queue->back->next = newNode;
+		queue->back = newNode;
+	}
+	queue->length++;
+	return 0;
 }
 
-int queue_delete(queue_t queue, void *data)
-{
+int queue_dequeue(queue_t queue, void **data) {
+	if (data == NULL || queue == NULL || queue->length == 0) {
+		return -1;
+	}
+	if (queue->length == 1) {
+		*data = queue->front->key;
+		free(queue->front);
+		queue->front = NULL;
+		queue->back = NULL;
+	}
+	else {
+		struct Qnode *temp = queue->front;
+		*data = queue->front->key;
+		queue->front = queue->front->next;
+		free(temp);
+	}
+	queue->length--;
+	return 0;
+}
+
+int queue_delete(queue_t queue, void *data) {
+	if (data == NULL || queue == NULL || queue->length == 0) {
+		return -1;
+	}
+	Qnode *temp = queue->front;
+	// The element we want to delete is front.
+	if (data == temp->key) {
+		if (queue->length == 1) {
+			free(queue->front);
+			queue->front = NULL;
+			queue->back = NULL;
+		}
+		else {
+			queue->front = queue->front->next;
+			free(temp);
+		}
+		queue->length--;
+		return 0;
+	}
+	// The element we want to delete is not front.
+	while (temp->next != NULL) {
+		if (temp->next->key == data) {
+			// Delete next node.
+			temp->next = temp->next->next;
+			return 0;
+		}
+		temp = temp->next;
+	}
+	return -1;
+}
+
+int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data) {
 	/* TODO Phase 1 */
 }
 
-int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data)
-{
-	/* TODO Phase 1 */
-}
-
-int queue_length(queue_t queue)
-{
+int queue_length(queue_t queue) {
 	/* TODO Phase 1 */
 }
 
 // Remove when submit.
 void main() {
-    queue_t ptr = queue_create();
-    int a = 3;
-    int c = 5;
-    int enqueueValue = queue_enqueue(ptr, &a);
-    printf("enqueueValue is: %d \n", enqueueValue);
-    queue_enqueue(ptr, &c);
-    for (int i = ptr->front; i < ptr->back+1; i++) {
-        printf("before dequeue ptr[i] is: %d \n", *(int*)ptr->array[i]);
-    }
-
-    // void **b;
-    int b = 100;
-    void *bp;
-    bp = &b;
-    void **bpp;
-    bpp = &bp;
-    int dequeueValue = queue_dequeue(ptr, bpp);
-    printf("dequeued value b %p \n", bpp);
-    // printf("dequeued value bp %d \n", (int)*bp);
-    // printf("dequeued value bpp %d \n", *((int*)*bpp));
-    // for (int i = ptr->front; i < ptr->back+1; i++) {
-    //     printf("after dequeue ptr[i] is: %d \n", *(int*)ptr->array[i]);
-    // }
-    // printf("dequeue return is %d \n", dequeueValue);
-    // int destroyValue = queue_destroy(ptr);
-    // printf("destroyValue is: %d\n", destroyValue);
-    return;
+	struct Queue *p = queue_create();
+	int a = 0;
+	int b = 1;
+	int c = 2;
+	int d = 3;
+	int e = 4;
+	int f;
+	int *fp = &f;
+	int **fpp = &fp;
+	queue_enqueue(p,&a);
+	queue_enqueue(p,&b);
+	queue_enqueue(p,&c);
+	queue_enqueue(p,&d);
+	queue_enqueue(p,&e);
+	queue_dequeue(p,fpp);
+	queue_delete(p,&c);
+	struct Qnode* temp = p->front;
+	while(temp != NULL) {
+		printf("item %d \n", *(int*)temp->key);
+		temp = temp->next;
+	}
 
 }
