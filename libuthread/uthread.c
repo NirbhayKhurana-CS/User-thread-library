@@ -12,6 +12,25 @@
 #include "uthread.h"
 
 /* TODO Phase 2 */
+#define MAX_THREAD 32768
+
+enum state{running, ready, blocked, zombie};
+
+typedef struct Thread Thread;
+typedef struct ThreadControl ThreadControl;
+
+struct Thread {
+    uthread_t threadId;
+    void *stack;
+    int stateId;
+    uthread_ctx_t *context;
+    ThreadControl *controlAddr;
+};
+
+struct ThreadControl {
+    int threadCount; // Thread count doesn't include the main thread
+    Thread *threadArray[MAX_THREAD];
+};
 
 void uthread_yield(void)
 {
@@ -23,9 +42,52 @@ uthread_t uthread_self(void)
 	/* TODO Phase 2 */
 }
 
-int uthread_create(uthread_func_t func, void *arg)
-{
-	/* TODO Phase 2 */
+int first_uthread_create(ThreadControl *threadControl) {
+    threadControl->threadCount = 0;
+    Thread *firstThread = malloc(sizeof(Thread));
+    if (firstThread == NULL) {
+        return -1;
+    }
+    firstThread->stack = uthread_ctx_alloc_stack();
+    firstThread->threadId = 0;
+    // TODO statusID
+    threadControl->threadArray[0] = firstThread;
+    return 0;
+}
+
+int uthread_create(uthread_func_t func, void *arg) {
+    // This is the new thread to register.
+    static ThreadControl *threadControl;
+    Thread *thread = malloc(sizeof(Thread));
+    if (thread == NULL) {
+        return -1;
+    }
+    static int count = 0;
+    if (count == 0) {
+        ThreadControl *threadControl = malloc(sizeof(ThreadControl));
+        if (threadControl == NULL) {
+            return -1;
+        }
+        if (first_uthread_create(threadControl) == -1) {
+            return -1;
+        }
+
+    }
+    count++;
+    thread->stack = uthread_ctx_alloc_stack();
+    ucontext_t *uctx = malloc(sizeof(ucontext_t));
+    if (uctx == NULL) {
+        return -1;
+    }
+    int ctxInitRetval = uthread_ctx_init(uctx, thread->stack, func, arg);
+    if (ctxInitRetval == -1) {
+        return -1;
+    }
+    thread->context = uctx;
+    thread->threadId = count;
+    threadControl->threadCount = count;
+    threadControl->threadArray[count] = thread;
+    return thread->threadId;
 }
 
 void uthread_exit(int retval)
@@ -38,4 +100,3 @@ int uthread_join(uthread_t tid, int *retval)
 	/* TODO Phase 2 */
 	/* TODO Phase 3 */
 }
-
