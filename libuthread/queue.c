@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <stdio.h>  // Remove when submit.
+#include <stdio.h>  // Remove when submit.
 #include "queue.h"
 
 typedef struct Qnode {
@@ -135,6 +135,21 @@ int queue_length(queue_t queue) {
 }
 
 // Remove when submit.
+void queue_print(queue_t p) {
+	printf("-----launch printing queue-----\n");
+	struct Qnode *temp;
+	temp = p->front;
+	while(temp != NULL) {
+		printf("item %d \n", *(int*)temp->key);
+		temp = temp->next;
+	}
+	printf("-----finish printing queue-----\n");
+}
+
+
+
+
+
 // static int test(void *data, void *arg) {
 // 	int result;
 // 	result = *(int*)data - *(int*)arg;

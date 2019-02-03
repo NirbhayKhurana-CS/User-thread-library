@@ -1,7 +1,8 @@
 # Target programs
 programs := \
-	uthread_hello.x \
-	uthread_yield.x
+	test_queue.x 
+	# uthread_hello.x \
+	# uthread_yield.x
 
 # User-level thread library
 UTHREADLIB := libuthread
@@ -72,4 +73,3 @@ clean:
 	$(Q)rm -rf $(objs) $(deps) $(programs)
 
 .PHONY: clean $(libuthread)
-

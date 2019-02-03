@@ -10,3 +10,6 @@ queue.o: queue.c queue.h
 
 libuthread.a: queue.o
 	ar rcs libuthread.a queue.o
+
+clean:
+	rm -f libuthread.a queue.o

@@ -1,16 +1,7 @@
 #include <stdio.h>  // Remove when submit.
 #include <stdlib.h>  // Remove when submit.
-#include <queue.h>
 #include <assert.h>
-
-static int test(void *data, void *arg) {
-	int result;
-	result = *(int*)data - *(int*)arg;
-	if (result == -1) {
-		return 1;
-	}
-	return 0;
-}
+#include "queue.h"
 
 static int find_item(void *data, void *arg)
 {
@@ -21,11 +12,15 @@ static int find_item(void *data, void *arg)
 	}
     return 0;
 }
+
+struct Qnode;
+struct queue;
+typedef struct queue* queue_t;
 int main() {
     assert(queue_destroy(NULL) == -1);
     assert(queue_enqueue(NULL, NULL) == -1);
-
-	queue_t p = queue_create();
+	queue_t p;
+	p = queue_create();
 	int a = 0;
 	int b = 1;
 	int c = 2;
@@ -40,17 +35,14 @@ int main() {
 	queue_enqueue(p,&c);
 	queue_enqueue(p,&d);
 	queue_enqueue(p,&e);
+	queue_print(p);
 	queue_dequeue(p,fpp);
 	queue_delete(p,&c);
-	Qnode* temp = p->front;
-	while(temp != NULL) {
-		printf("item %d \n", *(int*)temp->key);
-		temp = temp->next;
-	}
+	printf("fpp is %d\n", *(int*)fp);
+	queue_print(p);
 	int len = queue_length(p);
 	printf("length is %d\n", len);
-	queue_func_t funcPtr = &find_item;
-	queue_iterate(p, funcPtr, (void*)4, fpp);
+	queue_iterate(p, &find_item, (void*)4, fpp);
 	printf("fpp is %d\n", *(int*)fp);
     return 0;
 
