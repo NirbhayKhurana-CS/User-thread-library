@@ -13,8 +13,9 @@
 
 #include <stdbool.h>
 #include <limits.h>
-enum status { RUNNING, READY, BLOCKED, ZOMBIE };
+#define UTHREAD_STACK_SIZE 32768
 
+enum status { RUNNING, READY, BLOCKED, ZOMBIE };
 // Forward decleration because two struct includes each other's pointer.
 typedef struct Thread Thread;
 typedef struct ThreadControl ThreadControl;
@@ -31,7 +32,8 @@ struct ThreadControl {
     Thread *runningThread;
 };
 
-static ThreadControl *threadControl;
+static ThreadControl s;
+static ThreadControl *threadControl = &s;
 
 /*
  * count is the number of totoal threads, including main threads.
@@ -42,11 +44,13 @@ static int count = 0;
 void uthread_yield(void) {
 	Thread *t1 = threadControl->runningThread;
     Thread *t2 = malloc(sizeof(Thread));
-    queue_dequeue(threadControl->readyQueue, (void **)&t2);
+    int exitReady = queue_dequeue(threadControl->readyQueue, (void **)&t2);
+    if (exitReady != -1) {
+        t2->state = RUNNING;
+        threadControl->runningThread = t2;
+    }
     t1->state = READY;
     queue_enqueue(threadControl->readyQueue, t1);
-    t2->state = RUNNING;
-    threadControl->runningThread = t2;
     uthread_ctx_switch(t1->context, t2->context);
 }
 
@@ -69,6 +73,13 @@ int main_uthread_create(ThreadControl *threadControl) {
     if (mainThread == NULL) {
         return -1;
     }
+    void *mainStack = uthread_ctx_alloc_stack();
+    mainThread->context = malloc(sizeof(uthread_ctx_t));
+
+
+    mainThread->context->uc_stack.ss_sp = mainStack;
+	mainThread->context->uc_stack.ss_size = UTHREAD_STACK_SIZE;
+
     mainThread->threadId = 0;
     mainThread->state = RUNNING;
     threadControl->runningThread = mainThread;
@@ -82,7 +93,7 @@ int uthread_create(uthread_func_t func, void *arg) {
         return -1;
     }
     if (count == 0) {
-        // ThreadControl *threadControl = malloc(sizeof(ThreadControl));
+        // threadControl = malloc(sizeof(ThreadControl));
         if (threadControl == NULL) {
             return -1;
         }
@@ -92,16 +103,17 @@ int uthread_create(uthread_func_t func, void *arg) {
     }
     count++;
     void *threadStack = uthread_ctx_alloc_stack();
-    ucontext_t *uctx = malloc(sizeof(ucontext_t));
-    if (uctx == NULL) {
+    // uthread_ctx_t *uctx = malloc(sizeof(uthread_ctx_t));
+    thread->context = malloc(sizeof(uthread_ctx_t));
+    if (thread->context == NULL) {
         return -1;
     }
-    int ctxInitRetval = uthread_ctx_init(uctx, threadStack, func, arg);
+    int ctxInitRetval = uthread_ctx_init(thread->context, threadStack, func, arg);
     if (ctxInitRetval == -1) {
         return -1;
     }
     thread->controlAddr = threadControl;
-    thread->context = uctx;
+    // thread->context = (uthread_ctx_t *)malloc(sizeof(uthread_ctx_t));
     thread->threadId = count;
     thread->state = READY;
     queue_enqueue(threadControl->readyQueue, thread);
@@ -110,7 +122,12 @@ int uthread_create(uthread_func_t func, void *arg) {
 
 void uthread_exit(int retval)
 {
-	/* TODO Phase 2 */
+	Thread *t;
+    queue_dequeue(threadControl->readyQueue,(void **)&t);
+    t->state = RUNNING;
+    Thread *temp = threadControl->runningThread;
+    threadControl->runningThread = t;
+    uthread_ctx_switch(temp->context, t->context);
 }
 
 int uthread_join(uthread_t tid, int *retval) {
@@ -120,7 +137,6 @@ int uthread_join(uthread_t tid, int *retval) {
         }
         else {
             uthread_yield();
-            break;
         }
     }
     return 0;
