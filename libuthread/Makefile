@@ -6,10 +6,16 @@
 default: libuthread.a
 
 queue.o: queue.c queue.h
-	gcc -Wall -Werror -c -o queue.o queue.c
+	gcc -Wall -Werror -o queue.o queue.c -c
 
-libuthread.a: queue.o
-	ar rcs libuthread.a queue.o
+context.o: context.c context.h uthread.c 
+	gcc -Wall -Werror -o context.o context.c -c
+
+uthread.o: uthread.c uthread.h
+	gcc -Wall -Werror -o uthread.o uthread.c -c
+
+libuthread.a: queue.o uthread.o
+	ar rcs libuthread.a queue.o uthread.o context.o
 
 clean:
-	rm -f libuthread.a queue.o
+	rm -f libuthread.a queue.o uthread.o context.o

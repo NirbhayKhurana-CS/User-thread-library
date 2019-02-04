@@ -11,10 +11,9 @@
 #include "queue.h"
 #include "uthread.h"
 
-/* TODO Phase 2 */
-#define MAX_THREAD 32768
-
-enum status{running, ready, blocked, zombie};
+#include <stdbool.h>
+#include <limits.h>
+enum status { RUNNING, READY, BLOCKED, ZOMBIE };
 
 // Forward decleration because two struct includes each other's pointer.
 typedef struct Thread Thread;
@@ -23,14 +22,13 @@ typedef struct ThreadControl ThreadControl;
 struct Thread {
     uthread_t threadId;
     int state;
-    void *stack;
     uthread_ctx_t *context;
     ThreadControl *controlAddr;
 };
 
 struct ThreadControl {
-    int threadCount; // ThreadCount doesn't include the main thread
-    Thread *threadArray[MAX_THREAD];
+    queue_t readyQueue; // readyQueue stores Thread pointer.
+    Thread *runningThread;
 };
 
 static ThreadControl *threadControl;
@@ -41,26 +39,39 @@ static ThreadControl *threadControl;
  */
 static int count = 0;
 
-void uthread_yield(void)
-{
-	/* TODO Phase 2 */
+void uthread_yield(void) {
+	Thread *t1 = threadControl->runningThread;
+    Thread *t2 = malloc(sizeof(Thread));
+    queue_dequeue(threadControl->readyQueue, (void **)&t2);
+    t1->state = READY;
+    queue_enqueue(threadControl->readyQueue, t1);
+    t2->state = RUNNING;
+    threadControl->runningThread = t2;
+    uthread_ctx_switch(t1->context, t2->context);
 }
 
 uthread_t uthread_self(void)
 {
-	/* TODO Phase 2 */
+    if (threadControl == NULL || threadControl->runningThread == NULL) {
+        printf("Something wrong in uthread_self\n");
+        exit(1);
+    }
+    if (threadControl->runningThread->threadId >= USHRT_MAX) {
+        printf("TID value overflow\n");
+        exit(1);
+    }
+	return threadControl->runningThread->threadId;
 }
 
-int first_uthread_create(ThreadControl *threadControl) {
-    threadControl->threadCount = 0;
-    Thread *firstThread = malloc(sizeof(Thread));
-    if (firstThread == NULL) {
+int main_uthread_create(ThreadControl *threadControl) {
+    threadControl->readyQueue = queue_create();
+    Thread *mainThread = malloc(sizeof(Thread));
+    if (mainThread == NULL) {
         return -1;
     }
-    firstThread->stack = uthread_ctx_alloc_stack();
-    firstThread->threadId = 0;
-    // TODO state
-    threadControl->threadArray[0] = firstThread;
+    mainThread->threadId = 0;
+    mainThread->state = RUNNING;
+    threadControl->runningThread = mainThread;
     return 0;
 }
 
@@ -75,24 +86,25 @@ int uthread_create(uthread_func_t func, void *arg) {
         if (threadControl == NULL) {
             return -1;
         }
-        if (first_uthread_create(threadControl) == -1) {
+        if (main_uthread_create(threadControl) == -1) {
             return -1;
         }
     }
     count++;
-    thread->stack = uthread_ctx_alloc_stack();
+    void *threadStack = uthread_ctx_alloc_stack();
     ucontext_t *uctx = malloc(sizeof(ucontext_t));
     if (uctx == NULL) {
         return -1;
     }
-    int ctxInitRetval = uthread_ctx_init(uctx, thread->stack, func, arg);
+    int ctxInitRetval = uthread_ctx_init(uctx, threadStack, func, arg);
     if (ctxInitRetval == -1) {
         return -1;
     }
+    thread->controlAddr = threadControl;
     thread->context = uctx;
     thread->threadId = count;
-    threadControl->threadCount = count;
-    threadControl->threadArray[count] = thread;
+    thread->state = READY;
+    queue_enqueue(threadControl->readyQueue, thread);
     return thread->threadId;
 }
 
@@ -101,8 +113,15 @@ void uthread_exit(int retval)
 	/* TODO Phase 2 */
 }
 
-int uthread_join(uthread_t tid, int *retval)
-{
-	/* TODO Phase 2 */
-	/* TODO Phase 3 */
+int uthread_join(uthread_t tid, int *retval) {
+    while (true) {
+        if (queue_length(threadControl->readyQueue) == 0) {
+            break;
+        }
+        else {
+            uthread_yield();
+            break;
+        }
+    }
+    return 0;
 }
