@@ -22,13 +22,19 @@ typedef struct ThreadControl ThreadControl;
 
 struct Thread {
     uthread_t threadId;
+    int selfRetval; // Self return value.
     int state;
     uthread_ctx_t *context;
     ThreadControl *controlAddr;
+    Thread *child;
+    bool valid; // Self return value is valid.
 };
 
 struct ThreadControl {
-    queue_t readyQueue; // readyQueue stores Thread pointer.
+    // All three queues store thread pointer.
+    queue_t readyQueue;
+    queue_t zombieQueue;
+    queue_t blockedQueue;
     Thread *runningThread;
 };
 
@@ -54,8 +60,7 @@ void uthread_yield(void) {
     uthread_ctx_switch(t1->context, t2->context);
 }
 
-uthread_t uthread_self(void)
-{
+uthread_t uthread_self(void) {
     if (threadControl == NULL || threadControl->runningThread == NULL) {
         printf("Something wrong in uthread_self\n");
         exit(1);
@@ -69,10 +74,14 @@ uthread_t uthread_self(void)
 
 int main_uthread_create(ThreadControl *threadControl) {
     threadControl->readyQueue = queue_create();
+    threadControl->zombieQueue = queue_create();
+    threadControl->blockedQueue = queue_create();
     Thread *mainThread = malloc(sizeof(Thread));
     if (mainThread == NULL) {
         return -1;
     }
+    mainThread->child = NULL;
+    mainThread->valid = false;
     void *mainStack = uthread_ctx_alloc_stack();
     mainThread->context = malloc(sizeof(uthread_ctx_t));
 
@@ -87,11 +96,7 @@ int main_uthread_create(ThreadControl *threadControl) {
 }
 
 int uthread_create(uthread_func_t func, void *arg) {
-    // This is the new thread to register.
-    Thread *thread = malloc(sizeof(Thread));
-    if (thread == NULL) {
-        return -1;
-    }
+    // Check if we are creating main thread.
     if (count == 0) {
         // threadControl = malloc(sizeof(ThreadControl));
         if (threadControl == NULL) {
@@ -102,6 +107,13 @@ int uthread_create(uthread_func_t func, void *arg) {
         }
     }
     count++;
+    // This is the new thread to register.
+    Thread *thread = malloc(sizeof(Thread));
+    if (thread == NULL) {
+        return -1;
+    }
+    thread->valid = false;
+    thread->child = NULL;
     void *threadStack = uthread_ctx_alloc_stack();
     // uthread_ctx_t *uctx = malloc(sizeof(uthread_ctx_t));
     thread->context = malloc(sizeof(uthread_ctx_t));
@@ -120,14 +132,47 @@ int uthread_create(uthread_func_t func, void *arg) {
     return thread->threadId;
 }
 
-void uthread_exit(int retval)
-{
+int findParent(void* thread, void* childId) {
+    if (((Thread *)thread)->child->threadId == *(uthread_t *)childId) {
+        return 1;
+    }
+    return 0;
+}
+
+void uthread_exit(int retval) {
+    // Get next ready thread t.
 	Thread *t;
     queue_dequeue(threadControl->readyQueue,(void **)&t);
+    printf("t context when dequeued is: %p\n", t->context);
+
     t->state = RUNNING;
+
+    // temp was running thread, and it is about to be zombie.
     Thread *temp = threadControl->runningThread;
     threadControl->runningThread = t;
-    uthread_ctx_switch(temp->context, t->context);
+    // printf("t after assign is: %p\n", t-);
+
+    // Set self return value.
+    temp->selfRetval = retval;
+    temp->valid = true;
+    temp->state = ZOMBIE;
+
+    // Move parent thread from blockedQueue to readyQueue.
+    Thread *parent;
+    int iterateRetval = queue_iterate(threadControl->blockedQueue, &findParent, &temp->threadId, (void **)&parent);
+    if (iterateRetval == -1) {
+        printf("iterateRetval goes wrong\n");
+    }
+    queue_delete(threadControl->blockedQueue, parent);
+    queue_enqueue(threadControl->readyQueue, parent);
+
+    // Move myself to zombieQueue.
+    queue_enqueue(threadControl->zombieQueue, temp);
+
+    // Everything is settled. Switch context.
+    printf("t->context is: %p\n", t->context);
+    printf("runningThread context is: %p\n", threadControl->runningThread->context);
+    uthread_ctx_switch(temp->context, threadControl->runningThread->context);
 }
 
 int uthread_join(uthread_t tid, int *retval) {
