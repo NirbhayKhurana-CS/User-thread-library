@@ -114,12 +114,11 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data) {
 			if (data != NULL) {
 				*data = temp->key;
 			}
-			return 0;
+			break;
 		}
 		temp = temp->next;
 	}
-	printf("item not found in queue_iterate\n");
-	return 1;
+	return 0;
 }
 
 int queue_length(queue_t queue) {
@@ -146,57 +145,3 @@ void queue_print(queue_t p) {
 	}
 	printf("-----finish printing queue-----\n");
 }
-
-
-
-
-
-// static int test(void *data, void *arg) {
-// 	int result;
-// 	result = *(int*)data - *(int*)arg;
-// 	if (result == -1) {
-// 		return 1;
-// 	}
-// 	return 0;
-// }
-//
-// static int find_item(void *data, void *arg)
-// {
-//     int *a = (int*)data;
-//     int match = (int)(long)arg;
-//     if (*a == match){
-// 		return 1;
-// 	}
-//     return 0;
-// }
-
-// void main() {
-// 	queue_t p = queue_create();
-// 	int a = 0;
-// 	int b = 1;
-// 	int c = 2;
-// 	int d = 3;
-// 	int e = 4;
-// 	int f;
-// 	int g = 5;
-// 	void *fp = &f;
-// 	void **fpp = &fp;
-// 	queue_enqueue(p,&a);
-// 	queue_enqueue(p,&b);
-// 	queue_enqueue(p,&c);
-// 	queue_enqueue(p,&d);
-// 	queue_enqueue(p,&e);
-// 	queue_dequeue(p,fpp);
-// 	queue_delete(p,&c);
-// 	struct Qnode* temp = p->front;
-// 	while(temp != NULL) {
-// 		printf("item %d \n", *(int*)temp->key);
-// 		temp = temp->next;
-// 	}
-// 	int len = queue_length(p);
-// 	printf("length is %d\n", len);
-// 	queue_func_t funcPtr = &find_item;
-// 	queue_iterate(p, funcPtr, (void*)4, fpp);
-// 	printf("fpp is %d\n", *(int*)fp);
-//
-// }
