@@ -36,6 +36,11 @@ struct ThreadControl {
     queue_t readyQueue;
     queue_t zombieQueue;
     queue_t blockedQueue;
+
+    /*
+     * If a thread is collected, we insert threadId to this array,
+     * this array will help to check whether we are joining a joined thread.
+     */
     uthread_t joinedThreadArray[MAX_THREAD_NUM];
     int joinedThreadArrayLength;
     Thread *runningThread;
@@ -69,14 +74,22 @@ void joinedThreadArrayInsert(uthread_t threadId) {
     threadControl->joinedThreadArrayLength++;
 }
 
+// yield put running thread to readyQueue, and bring up next readyQueue.
+// If no thread is in readyQueue, we run the first thread in blockedQueue.
 void uthread_yield(void) {
 	Thread *t1 = threadControl->runningThread;
     Thread *t2 = malloc(sizeof(Thread));
     int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
-    if (dequeueRetval != -1) {
-        t2->state = RUNNING;
-        threadControl->runningThread = t2;
+    if (dequeueRetval == -1) {
+        int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t2);
+        // If no thread in blockedQueue.
+        if (blockedRetval == -1) {
+            return;
+        }
+        // Some thread in blockedQueue. We don't need to write else here.
     }
+    t2->state = RUNNING;
+    threadControl->runningThread = t2;
     t1->state = READY;
     queue_enqueue(threadControl->readyQueue, t1);
     uthread_ctx_switch(t1->context, t2->context);
@@ -95,6 +108,7 @@ uthread_t uthread_self(void) {
 }
 
 int main_uthread_create(ThreadControl *threadControl) {
+    // Initialize threadControl.
     threadControl->readyQueue = queue_create();
     threadControl->zombieQueue = queue_create();
     threadControl->blockedQueue = queue_create();
@@ -104,7 +118,6 @@ int main_uthread_create(ThreadControl *threadControl) {
         return -1;
     }
     mainThread->child = NULL;
-    // mainThread->joined = false;
     void *mainStack = uthread_ctx_alloc_stack();
     mainThread->context = malloc(sizeof(uthread_ctx_t));
 
@@ -120,7 +133,6 @@ int main_uthread_create(ThreadControl *threadControl) {
 int uthread_create(uthread_func_t func, void *arg) {
     // Check if we are creating main thread.
     if (count == 0) {
-        // threadControl = malloc(sizeof(ThreadControl));
         if (threadControl == NULL) {
             return -1;
         }
@@ -137,7 +149,6 @@ int uthread_create(uthread_func_t func, void *arg) {
     // thread->joined = false;
     thread->child = NULL;
     void *threadStack = uthread_ctx_alloc_stack();
-    // uthread_ctx_t *uctx = malloc(sizeof(uthread_ctx_t));
     thread->context = malloc(sizeof(uthread_ctx_t));
     if (thread->context == NULL) {
         return -1;
@@ -147,7 +158,6 @@ int uthread_create(uthread_func_t func, void *arg) {
         return -1;
     }
     thread->controlAddr = threadControl;
-    // thread->context = (uthread_ctx_t *)malloc(sizeof(uthread_ctx_t));
     thread->threadId = count;
     thread->state = READY;
     queue_enqueue(threadControl->readyQueue, thread);
@@ -165,11 +175,14 @@ void uthread_exit(int retval) {
     // Get next ready thread t.
 	Thread *t = malloc(sizeof(Thread));
     int readyRetval = queue_dequeue(threadControl->readyQueue,(void **)&t);
+    // If no thread in readyQueue.
     if (readyRetval == -1) {
         int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t);
+        // If no thread in blockedQueue.
         if (blockedRetval == -1) {
             return;
         }
+        // Some thread in blockedQueue, we immediately popup first one and let it run.
         else {
             t->state = RUNNING;
 
@@ -255,7 +268,7 @@ int uthread_join(uthread_t tid, int *retval) {
             int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
             // If successful dequeued.
             if (dequeueRetval == -1) {
-                printf("ERROR: nothing in dequeue\n");
+                printf("ERROR: nothing in dequeue but it should be\n");
             }
             t2->state = RUNNING;
             threadControl->runningThread = t2;
