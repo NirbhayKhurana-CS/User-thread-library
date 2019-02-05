@@ -21,6 +21,6 @@ int main(void)
 
 	tid = uthread_create(hello, NULL);
 	uthread_join(tid, NULL);
-
+	printf("end of main\n");
 	return 0;
 }
