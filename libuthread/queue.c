@@ -62,15 +62,13 @@ int queue_dequeue(queue_t queue, void **data) {
 	}
 	if (queue->length == 1) {
 		*data = queue->front->key;
-		free(queue->front);
 		queue->front = NULL;
 		queue->back = NULL;
 	}
 	else {
-		struct Qnode *temp = queue->front;
+		// struct Qnode *temp = queue->front;
 		*data = queue->front->key;
 		queue->front = queue->front->next;
-		free(temp);
 	}
 	queue->length--;
 	return 0;
@@ -84,13 +82,11 @@ int queue_delete(queue_t queue, void *data) {
 	// The element we want to delete is front.
 	if (data == temp->key) {
 		if (queue->length == 1) {
-			free(queue->front);
 			queue->front = NULL;
 			queue->back = NULL;
 		}
 		else {
 			queue->front = queue->front->next;
-			free(temp);
 		}
 		queue->length--;
 		return 0;
@@ -118,11 +114,12 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data) {
 			if (data != NULL) {
 				*data = temp->key;
 			}
-			break;
+			return 0;
 		}
 		temp = temp->next;
 	}
-	return 0;
+	printf("item not found in queue_iterate\n");
+	return 1;
 }
 
 int queue_length(queue_t queue) {

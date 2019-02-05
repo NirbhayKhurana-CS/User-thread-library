@@ -27,7 +27,7 @@ struct Thread {
     uthread_ctx_t *context;
     ThreadControl *controlAddr;
     Thread *child;
-    bool valid; // Self return value is valid.
+    bool joined; // Self return value is joined.
 };
 
 struct ThreadControl {
@@ -50,8 +50,8 @@ static int count = 0;
 void uthread_yield(void) {
 	Thread *t1 = threadControl->runningThread;
     Thread *t2 = malloc(sizeof(Thread));
-    int exitReady = queue_dequeue(threadControl->readyQueue, (void **)&t2);
-    if (exitReady != -1) {
+    int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
+    if (dequeueRetval != -1) {
         t2->state = RUNNING;
         threadControl->runningThread = t2;
     }
@@ -81,7 +81,7 @@ int main_uthread_create(ThreadControl *threadControl) {
         return -1;
     }
     mainThread->child = NULL;
-    mainThread->valid = false;
+    mainThread->joined = false;
     void *mainStack = uthread_ctx_alloc_stack();
     mainThread->context = malloc(sizeof(uthread_ctx_t));
 
@@ -112,7 +112,7 @@ int uthread_create(uthread_func_t func, void *arg) {
     if (thread == NULL) {
         return -1;
     }
-    thread->valid = false;
+    thread->joined = false;
     thread->child = NULL;
     void *threadStack = uthread_ctx_alloc_stack();
     // uthread_ctx_t *uctx = malloc(sizeof(uthread_ctx_t));
@@ -140,10 +140,18 @@ int findParent(void* thread, void* childId) {
 }
 
 void uthread_exit(int retval) {
+    static int countExit = 0;
+    countExit++;
+    printf("number of thread exit is: %d \n", countExit);
+    queue_print(threadControl->readyQueue);
+    printf("right now running thread is: %p\n", threadControl->runningThread);
+    printf("its thread id is: %d \n", (int)threadControl->runningThread->threadId);
     // Get next ready thread t.
 	Thread *t;
     queue_dequeue(threadControl->readyQueue,(void **)&t);
+    printf("t is: %p\n", t);
     printf("t context when dequeued is: %p\n", t->context);
+    printf("t threadid when dequeed is: %d \n", (int)t->threadId);
 
     t->state = RUNNING;
 
@@ -154,11 +162,11 @@ void uthread_exit(int retval) {
 
     // Set self return value.
     temp->selfRetval = retval;
-    temp->valid = true;
+    temp->joined = true;
     temp->state = ZOMBIE;
 
     // Move parent thread from blockedQueue to readyQueue.
-    Thread *parent;
+    Thread *parent = malloc(sizeof(Thread));
     int iterateRetval = queue_iterate(threadControl->blockedQueue, &findParent, &temp->threadId, (void **)&parent);
     if (iterateRetval == -1) {
         printf("iterateRetval goes wrong\n");
@@ -175,14 +183,89 @@ void uthread_exit(int retval) {
     uthread_ctx_switch(temp->context, threadControl->runningThread->context);
 }
 
-int uthread_join(uthread_t tid, int *retval) {
-    while (true) {
-        if (queue_length(threadControl->readyQueue) == 0) {
-            break;
-        }
-        else {
-            uthread_yield();
-        }
+int findChild(void* data, void* tid) {
+    if ((Thread *)data->threadId == *(uthread_t *)tid) {
+        return 1;
     }
+    return 0;
+}
+
+int uthread_join(uthread_t tid, int *retval) {
+    if (tid == uthread_self || tid == 0) {
+        printf("Trying to join self or main thread\n");
+        return -1;
+    }
+    // Set and find child.
+    Thread *childThread;
+    int iterateReadyRetval =
+        queue_iterate(threadControl->readyQueue, &findChild, &tid, (void **)&childThread);
+    int iterateZombieRetval =
+        queue_iterate(threadControl->zombieQueue, &findChild, &tid, (void **)&childThread);
+    int iterateBlockedRetval =
+        queue_iterate(threadControl->blockedQueue, &findChild, &tid, (void **)&childThread);
+
+    // // Errro check.
+    // int countZero = 0;
+    // if (interateReadyRetval == 0) {
+    //     countZero++;
+    // }
+    // if (iterateZombieRetval == 0) {
+    //     countZero++
+    // }
+    // if (iterateBlockedRetval == 0) {
+    //     countZero++;
+    // }
+    // if (countZero > 1) {
+    //     printf("ERROR: child exists in multiple queue\n");
+    // }
+
+    // If myself does not have child.
+    if (interateReadyRetval + iterateZombieRetval + iterateBlockedRetval == 3) {
+        uthread_yield();
+    }
+
+    if (childThread->joined) {
+        return -1;
+    }
+    // Connect child to parent.
+    threadControl->runningThread->child = childThread;
+
+    // If child is in readyQueue or blockedQueue, move myself to blockedQueue.
+    if (iterateReadyRetval == 0 || iterateBlockedRetval == 0) {
+        Thread *t1 = threadControl->runningThread;
+        Thread *t2 = malloc(sizeof(Thread));
+        int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
+        if (dequeueRetval != -1) {
+            t2->state = RUNNING;
+            threadControl->runningThread = t2;
+        }
+        t1->state = BLOCKED;
+        queue_enqueue(threadControl->blockedQueue, t1);
+        uthread_ctx_switch(t1->context, t2->context);
+    }
+
+    // If child is in zombieQueue, Collect data and free child.
+    if (iterateZombieRetval == 0) {
+        if (joined) {
+            /* code */
+        }
+        *retval = threadControl->runningThread->child->selfRetval;
+        queue_delete(threadControl->zombieQueue, threadControl->runningThread->child);
+        free(threadControl->runningThread->child);
+    }
+
+
+
+
+
+
+    if (interateRetval == 1) {
+        printf("In uthread_join, tid not found in iterate\n");
+        return -1;
+    }
+    threadControl->runningThread->child = childThread;
+
+
+
     return 0;
 }
