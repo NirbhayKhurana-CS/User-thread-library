@@ -18,14 +18,17 @@
 
 // Set sigaction
 static struct sigaction sa;
-static struct itimerval timer;
+// static struct itimerval timer;
 
 void preempt_disable(void) {
+    printf("enter disable\n");
+    sigdelset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_BLOCK, &sa.sa_mask, NULL);
 }
 
 void preempt_enable(void) {
     printf("Entering preempt_enable\n");
+    sigaddset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
 }
 
@@ -43,7 +46,7 @@ void handler(int sig) {
 void preempt_start(void) {
     printf("Entering preempt_start\n");
     // Set signal handler.
-    sa.sa_handler = &handler;
+    sa.sa_handler = handler;
     // Initialize signal mask.
     sigemptyset(&sa.sa_mask);
     // Set the flags
@@ -51,6 +54,7 @@ void preempt_start(void) {
     // Sa_signation??
     //
     sigaction(SIGVTALRM, &sa, NULL);
+    static struct itimerval timer;
     // sa.sa_flags = SA_SIGINFO;
     // printf("SA_SIGINFO is: %d \n", SA_SIGINFO);
     // printf("sigRetva is: %d \n", sigRetva);
@@ -62,6 +66,5 @@ void preempt_start(void) {
     timer.it_interval.tv_usec = MSEC;
 
     // ??
-    int timerRetval = setitimer(ITIMER_VIRTUAL, &timer, NULL);
-    printf("timerRetval is: %d \n", timerRetval);
+    setitimer(ITIMER_VIRTUAL, &timer, NULL);
 }

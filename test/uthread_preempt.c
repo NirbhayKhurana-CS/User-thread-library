@@ -6,9 +6,18 @@
 
 #include <uthread.h>
 
+int thread3(void *arg) {
+    printf("Entering thread3\n");
+    return 0;
+}
+
 int thread2(void *arg) {
     printf("Entering thread2\n");
-    printf("End of thread2\n");
+    uthread_create(thread3, NULL);
+    while (1) {
+        printf("In thread 2\n");
+        sleep(0.5);
+    }
     return 0;
 }
 
@@ -19,7 +28,10 @@ int thread1(void* arg)
     // printf("in thread1 printing queue\n");
     // uthread_printQueue();
     // printf("in thread1 end printing queue\n");
-    sleep(2);
+    while (1) {
+        printf("In thread 1\n");
+        sleep(0.5);
+    }
 	printf("I am thread 1!\n");
     printf("End of thread 1\n");
 	return 0;
@@ -27,9 +39,13 @@ int thread1(void* arg)
 
 int main(void)
 {
-	uthread_t tid;
-	tid = uthread_create(thread1, NULL);
-	uthread_join(tid, NULL);
+	// uthread_t tid;
+	uthread_create(thread1, NULL);
+	// uthread_join(tid, NULL);
+    while (1) {
+        printf("In thread 0\n");
+        sleep(0.5);
+    }
 	printf("end of main\n");
 	return 0;
 }

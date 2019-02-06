@@ -75,12 +75,14 @@ void joinedThreadArrayInsert(uthread_t threadId) {
 }
 
 // yield put running thread to readyQueue, and bring up next readyQueue.
-// If no thread is in readyQueue, we run the first thread in blockedQueue.
+// If no thread is in readyQueue, we do not want to run the first thread in blockedQueue.
 void uthread_yield(void) {
+    printf("I am yield %d\n",uthread_self());
 	Thread *t1 = threadControl->runningThread;
     Thread *t2 = malloc(sizeof(Thread));
     int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
     if (dequeueRetval == -1) {
+        return;
         int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t2);
         // If no thread in blockedQueue.
         if (blockedRetval == -1) {
@@ -129,13 +131,13 @@ int main_uthread_create(ThreadControl *threadControl) {
     mainThread->threadId = 0;
     mainThread->state = RUNNING;
     threadControl->runningThread = mainThread;
-    preempt_start();
     return 0;
 }
 
 int uthread_create(uthread_func_t func, void *arg) {
     // Check if we are creating main thread.
     if (count == 0) {
+        // preempt_start();
         if (threadControl == NULL) {
             return -1;
         }
@@ -164,6 +166,7 @@ int uthread_create(uthread_func_t func, void *arg) {
     thread->threadId = count;
     thread->state = READY;
     queue_enqueue(threadControl->readyQueue, thread);
+    preempt_start();
     return thread->threadId;
 }
 
@@ -180,6 +183,7 @@ void uthread_exit(int retval) {
     int readyRetval = queue_dequeue(threadControl->readyQueue,(void **)&t);
     // If no thread in readyQueue.
     if (readyRetval == -1) {
+        return;
         int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t);
         // If no thread in blockedQueue.
         if (blockedRetval == -1) {
@@ -301,10 +305,11 @@ int uthread_join(uthread_t tid, int *retval) {
             Thread *t1 = threadControl->runningThread;
             Thread *t2 = malloc(sizeof(Thread));
             int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
-            if (dequeueRetval != -1) {
-                t2->state = RUNNING;
-                threadControl->runningThread = t2;
+            if (dequeueRetval == -1) {
+                return 0;
             }
+            t2->state = RUNNING;
+            threadControl->runningThread = t2;
             t1->state = BLOCKED;
             queue_enqueue(threadControl->blockedQueue, t1);
             preempt_disable();
