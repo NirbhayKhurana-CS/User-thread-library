@@ -81,4 +81,7 @@ void uthread_exit(int retval);
  */
 int uthread_join(uthread_t tid, int *retval);
 
+// Remove when submit
+void uthread_printQueue();
+
 #endif /* _THREAD_H */

@@ -92,7 +92,9 @@ void uthread_yield(void) {
     threadControl->runningThread = t2;
     t1->state = READY;
     queue_enqueue(threadControl->readyQueue, t1);
+    preempt_disable();
     uthread_ctx_switch(t1->context, t2->context);
+    preempt_enable();
 }
 
 uthread_t uthread_self(void) {
@@ -127,6 +129,7 @@ int main_uthread_create(ThreadControl *threadControl) {
     mainThread->threadId = 0;
     mainThread->state = RUNNING;
     threadControl->runningThread = mainThread;
+    preempt_start();
     return 0;
 }
 
@@ -200,7 +203,9 @@ void uthread_exit(int retval) {
             queue_enqueue(threadControl->zombieQueue, temp);
 
             // Everything is settled. Switch context.
+            preempt_disable();
             uthread_ctx_switch(temp->context, threadControl->runningThread->context);
+            preempt_enable();
             return;
         }
     }
@@ -221,7 +226,9 @@ void uthread_exit(int retval) {
     Thread *beforeItr = parent;
     queue_iterate(threadControl->blockedQueue, &findParent, &temp->threadId, (void **)&parent);
     if (parent == beforeItr) {
+        preempt_disable();
         uthread_ctx_switch(temp->context, threadControl->runningThread->context);
+        preempt_enable();
     }
     queue_delete(threadControl->blockedQueue, parent);
     queue_enqueue(threadControl->readyQueue, parent);
@@ -230,7 +237,9 @@ void uthread_exit(int retval) {
     queue_enqueue(threadControl->zombieQueue, temp);
 
     // Everything is settled. Switch context.
+    preempt_disable();
     uthread_ctx_switch(temp->context, threadControl->runningThread->context);
+    preempt_enable();
     return;
 }
 
@@ -274,7 +283,9 @@ int uthread_join(uthread_t tid, int *retval) {
             threadControl->runningThread = t2;
             t1->state = BLOCKED;
             queue_enqueue(threadControl->blockedQueue, t1);
+            preempt_disable();
             uthread_ctx_switch(t1->context, t2->context);
+            preempt_enable();
             continue;
         }
 
@@ -296,7 +307,9 @@ int uthread_join(uthread_t tid, int *retval) {
             }
             t1->state = BLOCKED;
             queue_enqueue(threadControl->blockedQueue, t1);
+            preempt_disable();
             uthread_ctx_switch(t1->context, t2->context);
+            preempt_enable();
             continue;
         }
 
@@ -324,4 +337,9 @@ int uthread_join(uthread_t tid, int *retval) {
         }
     }
     return 0;
+}
+
+void uthread_printQueue() {
+    queue_print(threadControl->readyQueue);
+
 }
