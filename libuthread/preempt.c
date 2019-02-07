@@ -22,13 +22,13 @@ static struct itimerval timer;
 
 void preempt_disable(void) {
     // printf("enter disable\n");
-    sigdelset(&sa.sa_mask, SIGVTALRM);
+    // sigdelset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_BLOCK, &sa.sa_mask, NULL);
 }
 
 void preempt_enable(void) {
     // printf("Entering preempt_enable\n");
-    sigaddset(&sa.sa_mask, SIGVTALRM);
+    // sigaddset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
 }
 

@@ -1,24 +1,27 @@
-# Target library
-# lib := libuthread.a
-#
-# all: $(lib)
+target := libuthread.a
+objs   := queue.o context.o uthread.o preempt.o
 
-default: libuthread.a
+CFLAGS := -Wall -Werror
+CC     := gcc
 
-queue.o: queue.c queue.h
-	gcc -Wall -Werror -o queue.o queue.c -c
+ifneq ($(V),1)
+Q = @
+endif
 
-context.o: context.c context.h uthread.h preempt.h
-	gcc -Wall -Werror -o context.o context.c -c
+all: $(target)
 
-uthread.o: uthread.c uthread.h context.h queue.h
-	gcc -Wall -Werror -o uthread.o uthread.c -c
+deps := $(patsubst %.o,%.d,$(objs))# will be expanded into "main.d fact.d"
+-include $(deps)
+DEPFLAGS = -MMD -MF $(@:.o=.d)
 
-preempt.o: preempt.c preempt.h uthread.h
-	gcc -Wall -Werror -o preempt.o preempt.c -c
+$(target): $(objs)
+	@echo "AR	$@"
+	$(Q)ar rcs $@ $^
 
-libuthread.a: queue.o uthread.o context.o preempt.o
-	ar rcs libuthread.a queue.o uthread.o context.o preempt.o
+%.o: %.c
+	@echo "CC	$@"
+	$(Q)$(CC) $(CFLAGS) -c -o $@ $< $(DEPFLAGS)
 
 clean:
-	rm -f libuthread.a queue.o context.o uthread.o preempt.o
+	@echo "CLEAN"
+	$(Q)rm -f $(target) $(objs) $(deps)
