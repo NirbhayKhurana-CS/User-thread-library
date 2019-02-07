@@ -18,16 +18,16 @@
 
 // Set sigaction
 static struct sigaction sa;
-// static struct itimerval timer;
+static struct itimerval timer;
 
 void preempt_disable(void) {
-    printf("enter disable\n");
+    // printf("enter disable\n");
     sigdelset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_BLOCK, &sa.sa_mask, NULL);
 }
 
 void preempt_enable(void) {
-    printf("Entering preempt_enable\n");
+    // printf("Entering preempt_enable\n");
     sigaddset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
 }
@@ -35,10 +35,10 @@ void preempt_enable(void) {
 
 
 void handler(int sig) {
-    printf("Entering handler\n");
+    // printf("Entering handler-------------------------------------------\n");
     if (sig == SIGVTALRM) {
-        printf("handler receive signal, about to yield myself: %d\n", uthread_self());
-        uthread_printQueue();
+        // printf("handler receive signal, about to yield myself: %d\n", uthread_self());
+        // uthread_printQueue();
         uthread_yield();
     }
 }
@@ -53,8 +53,9 @@ void preempt_start(void) {
     sa.sa_flags = 0;
     // Sa_signation??
     //
+
     sigaction(SIGVTALRM, &sa, NULL);
-    static struct itimerval timer;
+
     // sa.sa_flags = SA_SIGINFO;
     // printf("SA_SIGINFO is: %d \n", SA_SIGINFO);
     // printf("sigRetva is: %d \n", sigRetva);
@@ -65,6 +66,5 @@ void preempt_start(void) {
     timer.it_interval.tv_sec = 0;
     timer.it_interval.tv_usec = MSEC;
 
-    // ??
     setitimer(ITIMER_VIRTUAL, &timer, NULL);
 }

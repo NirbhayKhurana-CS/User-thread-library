@@ -66,6 +66,7 @@ bool threadIsJoined(uthread_t threadId) {
     return false;
 }
 
+// Insert the joined thread into joinedThreadArray
 void joinedThreadArrayInsert(uthread_t threadId) {
     if (threadIsJoined(threadId)) {
         printf("Error: trying to insert a joined thread into array\n");
@@ -77,19 +78,23 @@ void joinedThreadArrayInsert(uthread_t threadId) {
 // yield put running thread to readyQueue, and bring up next readyQueue.
 // If no thread is in readyQueue, we do not want to run the first thread in blockedQueue.
 void uthread_yield(void) {
-    printf("I am yield %d\n",uthread_self());
 	Thread *t1 = threadControl->runningThread;
     Thread *t2 = malloc(sizeof(Thread));
+    Thread *beforeItr = t2;
     int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
     if (dequeueRetval == -1) {
         return;
-        int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t2);
-        // If no thread in blockedQueue.
-        if (blockedRetval == -1) {
-            return;
-        }
+        // int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t2);
+        // // If no thread in blockedQueue.
+        // if (blockedRetval == -1) {
+        //     return;
+        // }
         // Some thread in blockedQueue. We don't need to write else here.
     }
+    if (t2 == beforeItr) {
+        return;
+    }
+
     t2->state = RUNNING;
     threadControl->runningThread = t2;
     t1->state = READY;
@@ -131,6 +136,7 @@ int main_uthread_create(ThreadControl *threadControl) {
     mainThread->threadId = 0;
     mainThread->state = RUNNING;
     threadControl->runningThread = mainThread;
+    preempt_start();
     return 0;
 }
 
@@ -166,7 +172,7 @@ int uthread_create(uthread_func_t func, void *arg) {
     thread->threadId = count;
     thread->state = READY;
     queue_enqueue(threadControl->readyQueue, thread);
-    preempt_start();
+
     return thread->threadId;
 }
 
@@ -178,67 +184,55 @@ int findParent(void* thread, void* childId) {
 }
 
 void uthread_exit(int retval) {
-    // Get next ready thread t.
-	Thread *t = malloc(sizeof(Thread));
-    int readyRetval = queue_dequeue(threadControl->readyQueue,(void **)&t);
-    // If no thread in readyQueue.
-    if (readyRetval == -1) {
-        return;
-        int blockedRetval = queue_dequeue(threadControl->blockedQueue,(void **)&t);
-        // If no thread in blockedQueue.
-        if (blockedRetval == -1) {
-            return;
-        }
-        // Some thread in blockedQueue, we immediately popup first one and let it run.
-        else {
-            t->state = RUNNING;
-
-            // temp was running thread, and it is about to be zombie.
-            Thread *temp = malloc(sizeof(Thread));
-            temp = threadControl->runningThread;
-            threadControl->runningThread = t;
-            // printf("t after assign is: %p\n", t-);
-
-            // Set self return value.
-            temp->selfRetval = retval;
-            temp->state = ZOMBIE;
-
-            // Move myself to zombieQueue.
-            queue_enqueue(threadControl->zombieQueue, temp);
-
-            // Everything is settled. Switch context.
-            preempt_disable();
-            uthread_ctx_switch(temp->context, threadControl->runningThread->context);
-            preempt_enable();
-            return;
-        }
-    }
-    t->state = RUNNING;
-
     // temp was running thread, and it is about to be zombie.
     Thread *temp = malloc(sizeof(Thread));
+    preempt_disable();
     temp = threadControl->runningThread;
-    threadControl->runningThread = t;
-    // printf("t after assign is: %p\n", t-);
-
     // Set self return value.
     temp->selfRetval = retval;
     temp->state = ZOMBIE;
+    preempt_enable();
+    // Move myself to zombieQueue.
+    queue_enqueue(threadControl->zombieQueue, temp);
 
     // Move parent thread from blockedQueue to readyQueue.
     Thread *parent = malloc(sizeof(Thread));
     Thread *beforeItr = parent;
     queue_iterate(threadControl->blockedQueue, &findParent, &temp->threadId, (void **)&parent);
+    // If self has no parent in blockedQueue.
     if (parent == beforeItr) {
-        preempt_disable();
-        uthread_ctx_switch(temp->context, threadControl->runningThread->context);
-        preempt_enable();
+        // If nothing in readyQueue, we shall return.
+        if (queue_length(threadControl->readyQueue) < 1) {
+            return;
+        }
+        // If something in readyQueue, we pop it up.
+        else {
+            // Get next ready thread t.
+            Thread *t = malloc(sizeof(Thread));
+            queue_dequeue(threadControl->readyQueue,(void **)&t);
+            preempt_disable();
+            threadControl->runningThread = t;
+            t->state = RUNNING;
+            preempt_enable();
+            uthread_ctx_switch(temp->context, threadControl->runningThread->context);
+            return;
+        }
+        // preempt_disable();
+        // uthread_ctx_switch(temp->context, threadControl->runningThread->context);
+        // preempt_enable();
     }
+    // If self has a parent in blockedQueue.
     queue_delete(threadControl->blockedQueue, parent);
     queue_enqueue(threadControl->readyQueue, parent);
 
-    // Move myself to zombieQueue.
-    queue_enqueue(threadControl->zombieQueue, temp);
+    // Get next ready thread t.
+    Thread *t = malloc(sizeof(Thread));
+    queue_dequeue(threadControl->readyQueue,(void **)&t);
+
+    preempt_disable();
+    threadControl->runningThread = t;
+    t->state = RUNNING;
+    preempt_enable();
 
     // Everything is settled. Switch context.
     preempt_disable();
@@ -255,19 +249,18 @@ int findChild(void* data, void* tid) {
 }
 
 int uthread_join(uthread_t tid, int *retval) {
+
     if (tid == uthread_self() || tid == 0) {
         printf("Trying to join self or main thread\n");
         return -1;
     }
 
-
     while (true) {
-
         // Set and find child.
         Thread *childThread = malloc(sizeof(Thread));
         Thread *beforeItr = childThread;
 
-        // If child is in readyQueue, move myself to blockedQueue.
+        // If child is in readyQueue, move myself to blockedQueue and set running to the next in readyQueue.
         queue_iterate(threadControl->readyQueue, &findChild, &tid, (void **)&childThread);
         if (childThread != beforeItr) {
             if (threadIsJoined(childThread->threadId)) {
@@ -275,6 +268,7 @@ int uthread_join(uthread_t tid, int *retval) {
                 return -1;
             }
             // Connect child to parent.
+            preempt_disable();
             threadControl->runningThread->child = childThread;
             Thread *t1 = threadControl->runningThread;
             Thread *t2 = malloc(sizeof(Thread));
@@ -287,7 +281,6 @@ int uthread_join(uthread_t tid, int *retval) {
             threadControl->runningThread = t2;
             t1->state = BLOCKED;
             queue_enqueue(threadControl->blockedQueue, t1);
-            preempt_disable();
             uthread_ctx_switch(t1->context, t2->context);
             preempt_enable();
             continue;
@@ -302,6 +295,7 @@ int uthread_join(uthread_t tid, int *retval) {
             }
             // Connect child to parent.
             threadControl->runningThread->child = childThread;
+            preempt_disable();
             Thread *t1 = threadControl->runningThread;
             Thread *t2 = malloc(sizeof(Thread));
             int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
@@ -312,13 +306,12 @@ int uthread_join(uthread_t tid, int *retval) {
             threadControl->runningThread = t2;
             t1->state = BLOCKED;
             queue_enqueue(threadControl->blockedQueue, t1);
-            preempt_disable();
             uthread_ctx_switch(t1->context, t2->context);
             preempt_enable();
             continue;
         }
 
-        // If child is in zombieQueue, Collect data and free child.
+        // If child is in zombieQueue, Collect data and free child and parent continue running.
         queue_iterate(threadControl->zombieQueue, &findChild, &tid, (void **)&childThread);
         if (childThread != beforeItr) {
             if (threadIsJoined(childThread->threadId)) {
@@ -342,9 +335,4 @@ int uthread_join(uthread_t tid, int *retval) {
         }
     }
     return 0;
-}
-
-void uthread_printQueue() {
-    queue_print(threadControl->readyQueue);
-
 }
