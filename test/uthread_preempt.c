@@ -38,7 +38,7 @@ int thread2(void *arg) {
         }
     } while (sec < trigger);
 
-    printf("End of thread 2\n");
+    printf("End of thread 2, time is: %d\n", sec);
     return 0;
 
 }
