@@ -312,6 +312,15 @@ int uthread_join(uthread_t tid, int *retval) {
             uthread_ctx_destroy_stack(self->child->context->uc_stack.ss_sp);
             free(threadControl->runningThread->child->context);
             free(threadControl->runningThread->child);
+            /*
+             * If a thread finishes joining, and there is no more ready thread,
+             * we shall destory the dynamic allocated queues.
+             */
+            if (queue_length(threadControl->readyQueue) == 0) {
+                queue_destroy(threadControl->readyQueue);
+                queue_destroy(threadControl->blockedQueue);
+                queue_destroy(threadControl->zombieQueue);
+            }
             break;
         }
 
