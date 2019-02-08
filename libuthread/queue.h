@@ -112,7 +112,4 @@ int queue_iterate(queue_t queue, queue_func_t func, void *arg, void **data);
  */
 int queue_length(queue_t queue);
 
-// Remove when submit
-void queue_print(queue_t queue);
-
 #endif /* _QUEUE_H */

@@ -21,44 +21,28 @@ static struct sigaction sa;
 static struct itimerval timer;
 
 void preempt_disable(void) {
-    // printf("enter disable\n");
-    // sigdelset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_BLOCK, &sa.sa_mask, NULL);
 }
 
 void preempt_enable(void) {
-    // printf("Entering preempt_enable\n");
-    // sigaddset(&sa.sa_mask, SIGVTALRM);
     sigprocmask(SIG_UNBLOCK, &sa.sa_mask, NULL);
 }
 
-
-
 void handler(int sig) {
-    // printf("Entering handler-------------------------------------------\n");
     if (sig == SIGVTALRM) {
-        // printf("handler receive signal, about to yield myself: %d\n", uthread_self());
-        // uthread_printQueue();
         uthread_yield();
     }
 }
 
 void preempt_start(void) {
-    printf("Entering preempt_start\n");
     // Set signal handler.
     sa.sa_handler = handler;
     // Initialize signal mask.
     sigemptyset(&sa.sa_mask);
     // Set the flags
     sa.sa_flags = 0;
-    // Sa_signation??
-    //
-
+    // Set sugaction.
     sigaction(SIGVTALRM, &sa, NULL);
-
-    // sa.sa_flags = SA_SIGINFO;
-    // printf("SA_SIGINFO is: %d \n", SA_SIGINFO);
-    // printf("sigRetva is: %d \n", sigRetva);
 
     // Set up the timer.
     timer.it_value.tv_sec = 0;

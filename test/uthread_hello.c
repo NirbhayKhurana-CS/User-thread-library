@@ -1,14 +1,11 @@
-/*
- * Simple hello world test
- *
- * Tests the creation of a single thread and its successful return.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <uthread.h>
 
+/*
+ * Simple hello world test.
+ * Tests the creation of a single thread and its successful return.
+ */
 int hello(void* arg)
 {
 	printf("Hello world!\n");

@@ -129,19 +129,3 @@ int queue_length(queue_t queue) {
 		return queue->length;
 	}
 }
-
-// Remove when submit.
-void queue_print(queue_t p) {
-	printf("-----launch printing queue-----\n");
-	if (p == NULL) {
-		printf("this queue is null\n");
-		return;
-	}
-	struct Qnode *temp;
-	temp = p->front;
-	while(temp != NULL) {
-		printf("item %p \n", temp->key);
-		temp = temp->next;
-	}
-	printf("-----finish printing queue-----\n");
-}
