@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang xml:lang>
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Joël Porquet" />
+  <title>ECS 150: Project #2 - User-level thread library</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+html {
+font-size: 100%;
+overflow-y: scroll;
+-webkit-text-size-adjust: 100%;
+-ms-text-size-adjust: 100%;
+}
+body {
+color: #444;
+font-family: 'Noto Serif', serif;
+font-size: 10px;
+line-height: 1.5em;
+padding: 1em;
+width: 42em;
+margin: auto;
+background: #fefefe;
+position: relative;
+}
+
+.keyword{
+position: absolute;
+right: -15em;
+width: 10em;
+}
+
+a {
+color: #0645ad;
+text-decoration: none;
+}
+a:visited {
+color: #0b0080;
+}
+a:hover {
+color: #06e;
+}
+a:active {
+color: #faa700;
+}
+a:focus {
+outline: thin dotted;
+}
+
+*::-moz-selection {
+background: rgba(255, 255, 0, 0.3);
+color: #000;
+}
+*::selection {
+background: rgba(255, 255, 0, 0.3);
+color: #000;
+}
+a::-moz-selection {
+background: rgba(255, 255, 0, 0.3);
+color: #0645ad;
+}
+a::selection {
+background: rgba(255, 255, 0, 0.3);
+color: #0645ad;
+}
+
+p {
+margin: 1em 0;
+}
+img {
+max-width: 100%;
+}
+h1, h2, h3, h4, h5, h6 {
+color: #111;
+line-height: 125%;
+margin-top: 1em;
+font-weight: normal;
+}
+h4, h5, h6 {
+font-weight: bold;
+}
+h1 {
+font-size: 2.5em;
+}
+h2 {
+font-size: 2em;
+}
+h3 {
+font-size: 1.5em;
+}
+h4 {
+font-size: 1.2em;
+}
+h5 {
+font-size: 1em;
+}
+h6 {
+font-size: 0.9em;
+}
+blockquote {
+color: #666666;
+margin: 0;
+padding-left: 3em;
+border-left: 0.5em #EEE solid;
+}
+hr {
+display: block;
+height: 2px;
+border: 0;
+border-top: 1px solid #aaa;
+border-bottom: 1px solid #eee;
+margin: 1em 0;
+padding: 0;
+}
+pre, code, kbd, samp {
+color: #000;
+background: #f0f0f0;
+font-family: 'Noto Sans Mono', monospace;
+font-size: 95%;
+}
+pre {
+white-space: pre;
+white-space: pre-wrap;
+word-wrap: break-word;
+}
+b, strong {
+font-weight: bold;
+}
+dfn {
+font-style: italic;
+}
+ins {
+background: #ff9;
+color: #000;
+text-decoration: none;
+}
+mark {
+background: #ff0;
+color: #000;
+font-style: italic;
+font-weight: bold;
+}
+sub, sup {
+font-size: 75%;
+line-height: 0;
+position: relative;
+vertical-align: baseline;
+}
+sup {
+top: -0.5em;
+}
+sub {
+bottom: -0.25em;
+}
+ul, ol {
+margin: 1em 0;
+padding: 0 0 0 2em;
+}
+li p:last-child {
+margin-bottom: 0;
+}
+ul ul, ol ol {
+margin: .3em 0;
+}
+dl {
+margin-bottom: 1em;
+}
+dt {
+font-weight: bold;
+margin-bottom: .8em;
+}
+dd {
+margin: 0 0 .8em 2em;
+}
+dd:last-child {
+margin-bottom: 0;
+}
+img {
+border: 0;
+-ms-interpolation-mode: bicubic;
+vertical-align: middle;
+}
+figure {
+display: block;
+text-align: center;
+margin: 1em 0;
+}
+figure img {
+border: none;
+margin: 0 auto;
+}
+figcaption {
+font-size: 0.8em;
+font-style: italic;
+margin: 0 0 .8em;
+}
+
+table {
+margin-bottom: 2em;
+border-bottom: 1px solid #ddd;
+border-right: 1px solid #ddd;
+border-spacing: 0;
+border-collapse: collapse;
+}
+table th {
+padding: .2em 1em;
+background-color: #eee;
+border-top: 1px solid #ddd;
+border-left: 1px solid #ddd;
+}
+table td {
+padding: .2em 1em;
+border-top: 1px solid #ddd;
+border-left: 1px solid #ddd;
+vertical-align: top;
+}
+.author {
+font-size: 1.2em;
+
+}
+
+@media only screen and (min-width: 480px) {
+body {
+font-size: 14px;
+}
+}
+@media only screen and (min-width: 768px) {
+body {
+font-size: 16px;
+}
+}
+@media print {
+* {
+background: transparent !important;
+color: black !important;
+filter: none !important;
+-ms-filter: none !important;
+}
+body {
+font-size: 12pt;
+max-width: 100%;
+}
+a, a:visited {
+text-decoration: underline;
+}
+hr {
+height: 1px;
+border: 0;
+border-bottom: 1px solid black;
+}
+a[href]:after {
+content: " (" attr(href) ")";
+}
+abbr[title]:after {
+content: " (" attr(title) ")";
+}
+.ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after {
+content: "";
+}
+pre, blockquote {
+border: 1px solid #999;
+padding-right: 1em;
+page-break-inside: avoid;
+}
+tr, img {
+page-break-inside: avoid;
+}
+img {
+max-width: 100% !important;
+}
+@page :left {
+margin: 15mm 20mm 15mm 10mm;
+}
+@page :right {
+margin: 15mm 10mm 15mm 20mm;
+}
+p, h2, h3 {
+orphans: 3;
+widows: 3;
+}
+h2, h3 {
+page-break-after: avoid;
+}
+}
+</style>
+  <style type="text/css">.hll { background-color: #ffffcc }
+.c { color: #408080; font-style: italic } 
+.err { border: 1px solid #FF0000 } 
+.k { color: #008000; font-weight: bold } 
+.o { color: #666666 } 
+.ch { color: #408080; font-style: italic } 
+.cm { color: #408080; font-style: italic } 
+.cp { color: #BC7A00 } 
+.cpf { color: #408080; font-style: italic } 
+.c1 { color: #408080; font-style: italic } 
+.cs { color: #408080; font-style: italic } 
+.gd { color: #A00000 } 
+.ge { font-style: italic } 
+.gr { color: #FF0000 } 
+.gh { color: #000080; font-weight: bold } 
+.gi { color: #00A000 } 
+.go { color: #888888 } 
+.gp { color: #000080; font-weight: bold } 
+.gs { font-weight: bold } 
+.gu { color: #800080; font-weight: bold } 
+.gt { color: #0044DD } 
+.kc { color: #008000; font-weight: bold } 
+.kd { color: #008000; font-weight: bold } 
+.kn { color: #008000; font-weight: bold } 
+.kp { color: #008000 } 
+.kr { color: #008000; font-weight: bold } 
+.kt { color: #B00040 } 
+.m { color: #666666 } 
+.s { color: #BA2121 } 
+.na { color: #7D9029 } 
+.nb { color: #008000 } 
+.nc { color: #0000FF; font-weight: bold } 
+.no { color: #880000 } 
+.nd { color: #AA22FF } 
+.ni { color: #999999; font-weight: bold } 
+.ne { color: #D2413A; font-weight: bold } 
+.nf { color: #0000FF } 
+.nl { color: #A0A000 } 
+.nn { color: #0000FF; font-weight: bold } 
+.nt { color: #008000; font-weight: bold } 
+.nv { color: #19177C } 
+.ow { color: #AA22FF; font-weight: bold } 
+.w { color: #bbbbbb } 
+.mb { color: #666666 } 
+.mf { color: #666666 } 
+.mh { color: #666666 } 
+.mi { color: #666666 } 
+.mo { color: #666666 } 
+.sa { color: #BA2121 } 
+.sb { color: #BA2121 } 
+.sc { color: #BA2121 } 
+.dl { color: #BA2121 } 
+.sd { color: #BA2121; font-style: italic } 
+.s2 { color: #BA2121 } 
+.se { color: #BB6622; font-weight: bold } 
+.sh { color: #BA2121 } 
+.si { color: #BB6688; font-weight: bold } 
+.sx { color: #008000 } 
+.sr { color: #BB6688 } 
+.s1 { color: #BA2121 } 
+.ss { color: #19177C } 
+.bp { color: #008000 } 
+.fm { color: #0000FF } 
+.vc { color: #19177C } 
+.vg { color: #19177C } 
+.vi { color: #19177C } 
+.vm { color: #19177C } 
+.il { color: #666666 } 
+</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">ECS 150: Project #2 - User-level thread library</h1>
+<p class="author">Joël Porquet</p>
+<p class="date">UC Davis, Winter Quarter 2018</p>
+</header>
+<nav id="TOC">
+<ul>
+<li><a href="#changelog"><span class="toc-section-number">1</span> Changelog</a></li>
+<li><a href="#general-information"><span class="toc-section-number">2</span> General information</a></li>
+<li><a href="#specifications"><span class="toc-section-number">3</span> Specifications</a></li>
+<li><a href="#deliverable"><span class="toc-section-number">4</span> Deliverable</a></li>
+<li><a href="#academic-integrity"><span class="toc-section-number">5</span> Academic integrity</a></li>
+</ul>
+</nav>
+<h1 id="changelog"><span class="header-section-number">1</span> Changelog</h1>
+<ul>
+<li>v3: Make the thread unblocking clearer in terms of scheduling</li>
+<li>v2: Fix confusion around paths (nothing should be in the root directory, added test programs should be in directory test/)</li>
+<li>v1: First publication</li>
+</ul>
+<h1 id="general-information"><span class="header-section-number">2</span> General information</h1>
+<ul>
+<li>Due before <strong>11:59 PM, Friday, February 9th, 2017</strong>.</li>
+<li>You will be working <strong>with a partner</strong> for this project.</li>
+<li>The reference work environment is the CSIF.</li>
+</ul>
+<h1 id="specifications"><span class="header-section-number">3</span> Specifications</h1>
+<p><em>Note that the specifications for this project are subject to change at anytime for additional clarification. Make sure to always refer to the <strong>latest</strong> version.</em></p>
+<h2 id="introduction"><span class="header-section-number">3.1</span> Introduction</h2>
+<p>The goal of this project is to understand the idea of threads, by implementing a basic user-level thread library for Linux. Your library will provide a complete interface for applications to create and run independent threads concurrently.</p>
+<p>Similar to existing lightweight user-level thread libraries, your library must be able to:</p>
+<ol type="1">
+<li>Create new threads</li>
+<li>Schedule the execution of threads in a round-robin fashion</li>
+<li>Provide a synchronization mechanism for threads to join other threads</li>
+<li>Be preemptive, that is to provide an interrupt-based scheduler</li>
+</ol>
+<h3 id="constraints"><span class="header-section-number">3.1.1</span> Constraints</h3>
+<p>Your library must be written in C, be compiled with GCC and only use the standard functions provided by the <a href="https://www.gnu.org/software/libc/manual/">GNU C Library</a> (aka <code>libc</code>). <em>All</em> the functions provided by the <code>libc</code> can be used, but your program cannot be linked to any other external libraries.</p>
+<p>Your source code should follow the relevant parts of the <a href="https://www.kernel.org/doc/html/latest/process/coding-style.html">Linux kernel coding style</a> and be properly commented.</p>
+<h3 id="skeleton-code"><span class="header-section-number">3.1.2</span> Skeleton code</h3>
+<p>The skeleton code that you are expected to complete is available in <code>/home/cs150/public/p2</code>. This code already defines most of the prototypes for the functions you must implement, as explained in the following sections.</p>
+<div class="highlight"><pre><span></span>$ <span class="nb">cd</span> /home/cs150/public/p2
+$ tree
+.
+├── libuthread
+│   ├── context.c
+│   ├── context.h
+│   ├── Makefile*
+│   ├── preempt.c*
+│   ├── preempt.h
+│   ├── queue.c*
+│   ├── queue.h
+│   ├── uthread.c*
+│   └── uthread.h
+└── <span class="nb">test</span>
+    ├── Makefile
+    ├── uthread_hello.c
+    └── uthread_yield.c
+</pre></div>
+
+<p>The code is organized in two parts. In the subdirectory <code>test</code>, there are a couple of test applications which make use of the thread library. You can compile these applications and run them (you need Phase 2 to make them running).</p>
+<p>In the subdirectory <code>libuthread</code>, there are the files composing the thread library that you must complete. The files to complete are marked with a star (you should have <strong>no</strong> reason to touch any of the headers which are not marked with a star, even if you think you do…).</p>
+<h2 id="phase-1-queue-api"><span class="header-section-number">3.2</span> Phase 1: queue API</h2>
+<p>In this first phase, you must implement a simple FIFO queue. The interface to this queue is defined in <code>libuthread/queue.h</code> and your code should be added into <code>libuthread/queue.c</code>.</p>
+<p>You will find all the API documentation within the header file.</p>
+<p>The constraint for this exercise is that all operations (apart from the iterate and delete operation) must be <em>O(1)</em>. This implies that you must choose the underlying data structure for your queue implementation carefully.</p>
+<h3 id="makefile"><span class="header-section-number">3.2.1</span> 1.1 Makefile</h3>
+<p>Complete the file <code>libuthread/Makefile</code> in order to generate a <em>static library archive</em> named <code>libuthread/libuthread.a</code>.</p>
+<p>This library archive must be the default target of your Makefile, because your Makefile is called from the Makefile in the test directory without any argument.</p>
+<p>Note that at first, only the file <code>libuthread/queue.c</code> should be included in your library. You will add the other C files as you start implementing them in order to expand the API provided by your library.</p>
+<p>Useful resources for this phase:</p>
+<ul>
+<li><a href="http://tldp.org/HOWTO/Program-Library-HOWTO/static-libraries.html" class="uri">http://tldp.org/HOWTO/Program-Library-HOWTO/static-libraries.html</a></li>
+</ul>
+<h3 id="testing"><span class="header-section-number">3.2.2</span> 1.2 Testing</h3>
+<p>Add a new test program in the test directory, called <code>test_queue.c</code>, which tests your queue implementation. It is important that your test program is as comprehensive as possible in order to ensure that your queue implementation is resistant. It will ensure that you don’t encounter bugs when using your queue later on.</p>
+<p>Many tests can be to create queues, enqueue some items, make sure that these items are dequeued in the same order, delete some items, test the length of the queue, etc.</p>
+<p>For example, a first basic step would be to make sure that your implementation doesn’t crash when receiving NULL pointers as arguments:</p>
+<div class="highlight"><pre><span></span><span class="n">assert</span><span class="p">(</span><span class="n">queue_destroy</span><span class="p">(</span><span class="nb">NULL</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+<span class="n">assert</span><span class="p">(</span><span class="n">queue_enqueue</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</pre></div>
+
+<h3 id="hints"><span class="header-section-number">3.2.3</span> 1.3 Hints</h3>
+<p>Most of the functions of this API should look very familiar if you have ever coded a FIFO queue (e.g. create, destroy, enqueue, dequeue, etc.). However, one function of the API stands out from typical interfaces: <code>queue_iterate()</code>. This function provides a generic way to call a custom function (i.e. a function provided by the caller) on each item currently enqueued in the queue.</p>
+<p>For example, the following snippet of code shows you how a certain operation can be applied to every item of a queue, or how you can find a certain item in the queue and return it:</p>
+<div class="highlight"><pre><span></span><span class="cm">/* Callback function that increments items by a certain value */</span>
+<span class="k">static</span> <span class="kt">int</span> <span class="nf">inc_item</span><span class="p">(</span><span class="n">queue_t</span> <span class="n">q</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">arg</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="o">*</span><span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="o">*</span><span class="p">)</span><span class="n">data</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">inc</span> <span class="o">=</span> <span class="p">(</span><span class="kt">intptr_t</span><span class="p">)</span><span class="n">arg</span><span class="p">;</span>
+
+    <span class="o">*</span><span class="n">a</span> <span class="o">+=</span> <span class="n">inc</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/* Callback function that finds a certain item according to its value */</span>
+<span class="k">static</span> <span class="kt">int</span> <span class="nf">find_item</span><span class="p">(</span><span class="n">queue_t</span> <span class="n">q</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">arg</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="o">*</span><span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="o">*</span><span class="p">)</span><span class="n">data</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">match</span> <span class="o">=</span> <span class="p">(</span><span class="kt">intptr_t</span><span class="p">)</span><span class="n">arg</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="o">*</span><span class="n">a</span> <span class="o">==</span> <span class="n">match</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">test_iterator</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">queue_t</span> <span class="n">q</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">data</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">};</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="o">*</span><span class="n">ptr</span><span class="p">;</span>
+
+    <span class="cm">/* Initialize the queue and enqueue items */</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">queue_create</span><span class="p">();</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+        <span class="n">queue_enqueue</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+
+    <span class="cm">/* Add value '1' to every item of the queue */</span>
+    <span class="n">queue_iterate</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">inc_item</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="mi">1</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">);</span>
+
+    <span class="cm">/* Find and get the item which is equal to value '5' */</span>
+    <span class="n">queue_iterate</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">find_item</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="mi">5</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ptr</span><span class="p">);</span>
+    <span class="n">assert</span><span class="p">(</span><span class="o">*</span><span class="n">ptr</span> <span class="o">==</span> <span class="mi">5</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Hopefully, you will find that this function can be used in various ways when implementing the uthread API. One interesting usage can be, for example, to debug your queue(s) of threads! But other usages are possible too…</p>
+<h2 id="phase-2-uthread-api"><span class="header-section-number">3.3</span> Phase 2: uthread API</h2>
+<p>In this second phase, you must implement most of the thread management (some is provided to you for free). The interface to this thread API is defined in <code>libuthread/uthread.h</code> and your code should be added into <code>libuthread/uthread.c</code>.</p>
+<p>You will find all the API documentation within the header file.</p>
+<h3 id="thread-definition"><span class="header-section-number">3.3.1</span> Thread definition</h3>
+<p>Threads are independent execution flows that run concurrently in the address space of a single process (and thus, share the same global variables, heap memory, open files, process identifier, etc.). Each thread has its own execution context, which mainly consists of:</p>
+<ol type="1">
+<li>an identifier, know as TID (Thread IDentifier)</li>
+<li>a state (running, ready, blocked, etc.)</li>
+<li>a backup of the CPU registers (for saving the thread upon de-scheduling and restoring it later)</li>
+<li>a stack</li>
+</ol>
+<p>The goal of a thread library is to provide applications that want to use multithreading an interface (i.e. a set of library functions) that the application can use to create and start new threads, terminate threads, or manipulate threads in different ways.</p>
+<p>For example, the most well-known and wide-spread standard that defines the interface for threads on Unix-style operating systems is called <em>POSIX thread</em> (or <code>pthread</code>). The pthread API defines a set of functions, a subset of which we want to implement for this project. Of course, there are various ways in which the pthread API can be realized, and existing libraries have implemented pthread both in the OS kernel and in user mode. For this project, we aim to implement a few pthread functions at user level on Linux.</p>
+<h3 id="public-api"><span class="header-section-number">3.3.2</span> Public API</h3>
+<p>The API of the uthread library defines the set of functions that applications and the threads they create can call in order to interact with the library.</p>
+<p>The first function an application has to call in order to kick off the uthread library and create the first user thread is <code>uthread_create()</code>.</p>
+<p>When called for the first time, this function must first initialize the uthread library by registering the so-far single execution flow of the application as the <em>main</em> thread that the library can later schedule for execution like any other thread.</p>
+<p><em>Hint: you should put this initialization code in a separate function for clarity.</em></p>
+<p><code>uthread_create()</code> then creates the first user thread as specified by the arguments, and registers it to the library so that it can be scheduled for execution later. In this function, you will need to use the <code>context</code> API as discussed below.</p>
+<p>This first user thread can in turn call <code>uthread_create()</code> in order to create more user threads, and so on.</p>
+<p>For this step, we expect the scheduler to be non-preemptive. Threads must call the function <code>uthread_yield()</code> in order to ask the library’s scheduler to pick and run the next available thread. In non-preemptive mode, a non-compliant thread that never yields can keep the processing resource for itself.</p>
+<p>For this first step, you also don’t have to write <code>uthread_join()</code> the way it is defined by the documentation. At this point, we assume that <code>uthread_join()</code> is only called by the main function, mostly in order to wait for the threading system to terminate executing threads. You can therefore implement <code>uthread_join()</code> as follows:</p>
+<ul>
+<li>Execute an infinite loop in which
+<ul>
+<li>If there are no more threads which are ready to run in the system, break the loop and return</li>
+<li>Otherwise simply yield to next available thread</li>
+</ul></li>
+</ul>
+<h3 id="private-data-structure"><span class="header-section-number">3.3.3</span> Private data structure</h3>
+<p>In order to deal with the creation and scheduling of threads, you will need a data structure that can store information about a single thread.</p>
+<p>This data structure will likely need to hold, at least, information mentioned above such as the TID, the context of the thread (its set of registers), information about its stack (e.g., a pointer to the thread’s stack area), and information about the state of the thread (whether it is running, ready to run, or has exited).</p>
+<p>It will also need to contain more information when you implement the real version of <code>uthread_join()</code>.</p>
+<p>This data structure is often called a thread control block (<em>TCB</em>).</p>
+<h3 id="internal-context-api"><span class="header-section-number">3.3.4</span> Internal <code>context</code> API</h3>
+<p>Some code located in <code>libuthread/context.c</code>, and which interface is defined in <code>libuthread/context.h</code>, is accessible for you to use. The four functions provided by this library allow you to:</p>
+<ul>
+<li>Allocate a stack when creating a new thread (and conversely, destroy a stack when a thread is finally deleted)</li>
+<li>Initialize the stack and the execution context of the new thread so that it will run the specified function with the specified argument</li>
+<li>Switch between two execution contexts</li>
+</ul>
+<p>Useful resources if you would like to further understand how the <code>context</code> API works internally:</p>
+<ul>
+<li><a href="https://www.gnu.org/software/libc/manual/html_mono/libc.html#System-V-contexts" class="uri">https://www.gnu.org/software/libc/manual/html_mono/libc.html#System-V-contexts</a></li>
+</ul>
+<h3 id="testing-1"><span class="header-section-number">3.3.5</span> Testing</h3>
+<p>Two applications can help test this phase: - <code>uthread_hello</code>: creates a single thread that displays “Hello world!” - <code>uthread_yield</code>: creates three threads in cascade and test the yield feature of the scheduler</p>
+<h2 id="phase-3-uthread_join"><span class="header-section-number">3.4</span> Phase 3: <code>uthread_join()</code></h2>
+<p>When a thread exits, its resources (such as its TCB) are not automatically freed. It must first be “joined” by another thread, which can then (or not) collect the return value of the dead thread. The concept is very similar to <code>waitpid()</code> that you have seen for project 1.</p>
+<p>In this phase, you need to remove the infinite loop that you used in the previous phase for <code>uthread_join()</code> and implement the proper behavior for this function.</p>
+<p>When a thread T1 joins another thread T2 (usually, a parent joins its child), there are two possible scenarios:</p>
+<ol type="1">
+<li>If T2 is still an active thread, T1 must be blocked (i.e. it cannot be scheduled to run anymore) until T2 dies. When T2 dies, T1 is unblocked and collects T2.</li>
+<li>If T2 is already dead, T1 can collect T2 right away.</li>
+</ol>
+<p>Once T2 is collected, its resources can be finally entirely freed.</p>
+<p>When T1 is unblocked, it should be scheduled after all the currently runnable threads.</p>
+<h3 id="testing-2"><span class="header-section-number">3.4.1</span> Testing</h3>
+<p>For testing this phase, you should probably modify the two previous applications and add some proper joining from parents to children and see if the resulting synchronization corresponds to what is expected.</p>
+<h2 id="phase-4-preemption"><span class="header-section-number">3.5</span> Phase 4: preemption</h2>
+<p>Up to this point, uncooperative threads could keep the processing resource for themselves if they never call <code>uthread_yield()</code>.</p>
+<p>In order to avoid such dangerous behaviour, you will add preemption to your library. The interface of the preemption API is defined in <code>libuthread/preempt.h</code> and your code should be added to <code>libuthread/preempt.c</code>.</p>
+<h3 id="preempt_start"><span class="header-section-number">3.5.1</span> <code>preempt_start()</code></h3>
+<p>The function that sets up preemption, <code>preempt_start()</code>, is a two-step procedure:</p>
+<ol type="1">
+<li>Install a signal handler that receives alarm signals (of type <code>SIGVTALRM</code>)</li>
+<li>Configure a timer which will fire an alarm (through a <code>SIGVTALRM</code> signal) a hundred times per second (i.e. 100 Hz)</li>
+</ol>
+<p>Your signal handler, which acts as the timer interrupt handler, will force the currently running thread to yield, so that another thread can be scheduled instead.</p>
+<p>Useful resources for this phase:</p>
+<ul>
+<li><a href="https://www.gnu.org/software/libc/manual/html_mono/libc.html#Signal-Actions" class="uri">https://www.gnu.org/software/libc/manual/html_mono/libc.html#Signal-Actions</a></li>
+<li><a href="https://www.gnu.org/software/libc/manual/html_mono/libc.html#Setting-an-Alarm" class="uri">https://www.gnu.org/software/libc/manual/html_mono/libc.html#Setting-an-Alarm</a></li>
+</ul>
+<p>It is strongly encouraged to use <code>sigaction()</code> over <code>signal()</code>.</p>
+<h3 id="preempt_enabledisable"><span class="header-section-number">3.5.2</span> <code>preempt_{enable,disable}()</code></h3>
+<p>The two other functions that you must implement are meant to enable or disable preemption. For that, you will need to be able to block or unblock signals of type <code>SIGVTALRM</code>.</p>
+<p>Useful resources for this phase:</p>
+<ul>
+<li><a href="https://www.gnu.org/software/libc/manual/html_mono/libc.html#Blocking-Signals" class="uri">https://www.gnu.org/software/libc/manual/html_mono/libc.html#Blocking-Signals</a></li>
+</ul>
+<h3 id="about-disabling-preemption"><span class="header-section-number">3.5.3</span> About disabling preemption…</h3>
+<p>Preemption is a great way to enable reliable and fair scheduling of threads, but it comes with some pitfalls.</p>
+<p>For example, if the library is accessing sensitive data structures in order to add a new thread to the system and gets preempted in the middle, scheduling another thread of execution that might also manipulate the same data structures can cause the internal state of the library to become inconsistent.</p>
+<p>Therefore, when manipulating shared data structures, preemption should be temporarily disabled so that such manipulations are guaranteed to be performed <em>atomically</em>.</p>
+<p>However, avoid disabling preemption each time a thread calls the library. Try to disable preemption only when necessary. For example, the creation of a new thread can be separated between sensitive steps that need to be done atomically and non-sensitive steps that can safely be interrupted and resumed later without affecting the consistency of the shared data structures.</p>
+<p>A good way to figure out whether preemption should be temporarily disabled while performing a sequence of operations is to imagine what would happen if this sequence was interrupted in the middle and another thread scheduled.</p>
+<h3 id="testing-3"><span class="header-section-number">3.5.4</span> Testing</h3>
+<p>Add a new test program in the test directory, called <code>test_preempt.c</code>, which tests the preemption. Explain in your report why this program demonstrates that your preemptive scheduler works.</p>
+<p><em>Hint: the test program doesn’t have to be overly complicated…</em></p>
+<h1 id="deliverable"><span class="header-section-number">4</span> Deliverable</h1>
+<h2 id="content"><span class="header-section-number">4.1</span> Content</h2>
+<p>Your submission should contain, besides your source code, the following files:</p>
+<ul>
+<li><p><code>AUTHORS</code>: student ID of each partner, one entry per line. For example:</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> cat AUTHORS
+<span class="go">00010001</span>
+<span class="go">00010002</span>
+<span class="gp">$</span>
+</pre></div>
+</li>
+<li><p><code>IGRADING</code>: <strong>only if your group has been selected for interactive grading for this project</strong>, the interactive grading time slot you registered for.</p>
+<ul>
+<li>If your group has been selected for interactive grading for this project, this file must contain exactly one line describing your time slot with the format: <code>%m/%d/%y - %I:%M %p</code> (see <code>man date</code> for details). For example, an appointment on Monday January 15th at 2:10pm would be transcribed as <code>01/15/18 - 02:10 PM</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="gp">$</span> cat IGRADING
+<span class="go">01/15/18 - 02:10 PM</span>
+<span class="gp">$</span>
+</pre></div>
+</li>
+<li><p><code>REPORT.md</code>: a description of your submission. Your report must respect the following rules:</p>
+<ul>
+<li><p>It must be formatted in markdown language as described in this <a href="https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet">Markdown-Cheatsheet</a>.</p></li>
+<li><p>It should contain no more than 300 lines and the maximum width for each line should be 80 characters (check your editor’s settings to configure that).</p></li>
+<li><p>It should explain your high-level design choices, details about the relevant parts of your implementation, how you tested your project, the sources that you may have used to complete this project, and any other information that can help understanding your code.</p></li>
+<li><p>Keep in mind that the goal of this report is not to paraphrase the assignment, but to explain how you implemented it.</p></li>
+</ul></li>
+<li><p><code>libuthread/Makefile</code>: a Makefile that compiles your source code without any errors or warnings (on the CSIF computers), and builds a static library named <code>libuthread.a</code>.</p>
+<p>The compiler should be run with the options <code>-Wall -Werror</code>.</p>
+<p>There should also be a <code>clean</code> rule that removes generated files and puts the directory back in its original state.</p></li>
+</ul>
+<p>Your submission should be empty of any clutter files such as executable files, core dumps, etc.</p>
+<p>All the submitted files should be in Unix format.</p>
+<ul>
+<li><p>If you created the files on Windows, you can use the <code>dos2unix</code> tool in order to change the DOS newline sequence into the Unix one:</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> dos2unix AUTHORS
+<span class="go">dos2unix: converting file AUTHORS to Unix format...</span>
+<span class="gp">$</span>
+</pre></div>
+</li>
+<li><p>You also need to make sure that your file ends with a newline character. Here is an example when it does not, how to fix it, and what the final result should look like.</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> cat AUTHORS
+<span class="go">00010001</span>
+<span class="go">00010002$ echo &quot;&quot; &gt;&gt; AUTHORS</span>
+<span class="gp">$</span> cat AUTHORS
+<span class="go">00010001</span>
+<span class="go">00010002</span>
+<span class="gp">$</span>
+</pre></div>
+</li>
+</ul>
+<h2 id="git"><span class="header-section-number">4.2</span> Git</h2>
+<p>Your submission must be under the shape of a Git bundle. In your git repository, type in the following command (your work must be in the branch <code>master</code>):</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> git bundle create p2.bundle master
+</pre></div>
+
+<p>It should create the file <code>p2.bundle</code> that you will submit via <code>handin</code>.</p>
+<p>Before submitting, do make sure that your bundle has properly been packaged by extracting it in another directory and verifying the log:</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">cd</span> /path/to/tmp/dir
+<span class="gp">$</span> git clone /path/to/p2.bundle -b master uthread
+<span class="gp">$</span> <span class="nb">cd</span> uthread
+<span class="gp">$</span> ls -l
+<span class="go">...</span>
+<span class="gp">$</span> git log
+<span class="go">...</span>
+</pre></div>
+
+<h2 id="handin"><span class="header-section-number">4.3</span> Handin</h2>
+<p>Your Git bundle, as created above, is to be submitted with <code>handin</code> from one of the CSIF computers by <strong>only one person of your group</strong>:</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> handin cs150 p2 p2.bundle
+<span class="go">Submitting p2.bundle... ok</span>
+<span class="gp">$</span>
+</pre></div>
+
+<p>You can verify that the bundle has been properly submitted:</p>
+<div class="highlight"><pre><span></span><span class="gp">$</span> handin cs150 p2
+<span class="go">The following input files have been received:</span>
+<span class="go">...</span>
+<span class="gp">$</span>
+</pre></div>
+
+<h1 id="academic-integrity"><span class="header-section-number">5</span> Academic integrity</h1>
+<p>You are expected to write this project from scratch, thus avoiding to use any existing source code available on the Internet. You must specify in your <code>REPORT.md</code> file any sources of code that you or your partner have viewed to help you complete this project. All class projects will be submitted to MOSS to determine if pairs of students have excessively collaborated with other pairs, or have used the work of past students.</p>
+<p>Excessive collaboration, or failure to list external code sources will result in the matter being transferred to Student Judicial Affairs.</p>
+</body>
+</html>
