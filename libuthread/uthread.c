@@ -84,7 +84,7 @@ void joinedThreadArrayInsert(uthread_t threadId) {
  */
 void uthread_yield(void) {
 	Thread *t1 = threadControl->runningThread;
-    Thread *t2 = malloc(sizeof(Thread));
+    Thread *t2 = NULL;
     Thread *beforeItr = t2;
     int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
     if (dequeueRetval == -1) {
@@ -175,9 +175,8 @@ int findParent(void* thread, void* childId) {
 
 void uthread_exit(int retval) {
     // temp was running thread, and it is about to be zombie.
-    Thread *temp = malloc(sizeof(Thread));
     preempt_disable();
-    temp = threadControl->runningThread;
+    Thread *temp = threadControl->runningThread;
     // Set self return value.
     temp->selfRetval = retval;
     temp->state = ZOMBIE;
@@ -187,7 +186,7 @@ void uthread_exit(int retval) {
     queue_enqueue(threadControl->zombieQueue, temp);
 
     // Move parent thread from blockedQueue to readyQueue.
-    Thread *parent = malloc(sizeof(Thread));
+    Thread *parent = NULL;
     Thread *beforeItr = parent;
     queue_iterate(threadControl->blockedQueue, &findParent, &temp->threadId, (void **)&parent);
     // If self has no parent in blockedQueue.
@@ -198,7 +197,7 @@ void uthread_exit(int retval) {
         }
         // If something in readyQueue, we get next ready thread t.
         else {
-            Thread *t = malloc(sizeof(Thread));
+            Thread *t = NULL;
             queue_dequeue(threadControl->readyQueue,(void **)&t);
             preempt_disable();
             threadControl->runningThread = t;
@@ -213,7 +212,7 @@ void uthread_exit(int retval) {
     queue_enqueue(threadControl->readyQueue, parent);
 
     // Get next ready thread t.
-    Thread *t = malloc(sizeof(Thread));
+    Thread *t = NULL;
     queue_dequeue(threadControl->readyQueue,(void **)&t);
 
     preempt_disable();
@@ -243,7 +242,7 @@ int uthread_join(uthread_t tid, int *retval) {
 
     while (true) {
         // Set and find child.
-        Thread *childThread = malloc(sizeof(Thread));
+        Thread *childThread = NULL;
         Thread *beforeItr = childThread;
 
         /*
@@ -261,7 +260,7 @@ int uthread_join(uthread_t tid, int *retval) {
             threadControl->runningThread->child = childThread;
             // Move myself to blockedQueue and popup next ready thread to run.
             Thread *t1 = threadControl->runningThread;
-            Thread *t2 = malloc(sizeof(Thread));
+            Thread *t2 = NULL;
             queue_dequeue(threadControl->readyQueue, (void **)&t2);
             t2->state = RUNNING;
             threadControl->runningThread = t2;
@@ -283,7 +282,7 @@ int uthread_join(uthread_t tid, int *retval) {
             preempt_disable();
             // Move myself to blockedQueue and popup next ready thread to run.
             Thread *t1 = threadControl->runningThread;
-            Thread *t2 = malloc(sizeof(Thread));
+            Thread *t2 = NULL;
             int dequeueRetval = queue_dequeue(threadControl->readyQueue, (void **)&t2);
             // If no thread is in readyQueue, we return.
             if (dequeueRetval == -1) {
