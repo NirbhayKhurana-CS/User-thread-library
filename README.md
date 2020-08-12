@@ -179,10 +179,3 @@ this static variable, and we print only if the variable is a certain value and t
 loop goes for a certain time. By this, we successfully prevent printing statements
 overflowing the terminal output and prove that we are indeed switching between
 different threads.
-#### Limitation
-Sadly to admit, we do not free some temporarily created pointers. Those pointers
-are used to check in queue iteration, whether the correct element is retrieved.
-We get the content into those pointers and later, we insert those pointers to the
-three queues or set it to be running thread so they cannot simply be freed at the
-end of the function where they are created. If we have more time, we will surely
-look into this drawback more carefully.
